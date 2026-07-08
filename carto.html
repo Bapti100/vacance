@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Carte des vacances</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<style>
+  :root{
+    --ink:#2b2b28;
+    --paper:#faf8f4;
+    --line:#d8d3c8;
+    --accent:#3a6b5c;
+  }
+  html, body { margin:0; padding:0; height:100%; font-family: 'Segoe UI', system-ui, sans-serif; color: var(--ink); background: var(--paper); }
+  #map { position:absolute; top:0; bottom:0; left:0; right:0; }
+
+  .title-bar{
+    position:absolute; top:12px; left:12px; z-index:1000;
+    background: rgba(250,248,244,0.95);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:8px 14px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.12);
+    font-size:15px;
+    font-weight:600;
+  }
+  .title-bar span{ font-weight:400; font-size:12px; color:#666; display:block; }
+
+  .mode-switch{
+    position:absolute; top:12px; right:12px; z-index:1000;
+    background: rgba(250,248,244,0.95);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:4px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.12);
+    display:flex; gap:4px;
+  }
+  .mode-btn{
+    border:none;
+    background:transparent;
+    color:var(--ink);
+    font-size:12.5px;
+    font-weight:600;
+    padding:6px 12px;
+    border-radius:6px;
+    cursor:pointer;
+    font-family:inherit;
+  }
+  .mode-btn:hover{ background: rgba(0,0,0,0.06); }
+  .mode-btn.active{ background: var(--accent); color:#fff; }
+
+  .legend{
+    position:absolute; bottom:16px; left:12px; z-index:1000;
+    background: rgba(250,248,244,0.96);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:10px 14px;
+    font-size:12.5px;
+    line-height:1.5;
+    box-shadow:0 2px 6px rgba(0,0,0,0.12);
+    max-width:220px;
+  }
+  .legend h4{ margin:0 0 6px 0; font-size:12.5px; text-transform:uppercase; letter-spacing:0.04em; color:var(--accent); }
+  .legend-row{ display:flex; align-items:center; gap:6px; margin-bottom:3px; }
+  .legend-swatch{ width:14px; height:14px; border-radius:50%; flex-shrink:0; border:1px solid rgba(0,0,0,0.25); }
+  .legend-divider{ height:1px; background:var(--line); margin:8px 0; }
+  .legend-scale{ display:flex; gap:3px; align-items:center; margin-top:2px; }
+  .legend-scale div{ width:20px; height:10px; }
+
+  .marker-label{
+    background: rgba(250,248,244,0.92);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:1px 5px;
+    font-size:11px;
+    font-weight:600;
+    white-space:nowrap;
+    box-shadow:0 1px 2px rgba(0,0,0,0.15);
+  }
+  .marker-label::before{ display:none; }
+
+  .pin-icon{
+    display:flex; align-items:center; justify-content:center;
+    border-radius:50%;
+    box-shadow:0 1px 3px rgba(0,0,0,0.4);
+  }
+  .pin-done{ border: 2px solid rgba(0,0,0,0.55); }
+  .pin-todo{ border: 2px dashed rgba(0,0,0,0.6); }
+
+  .leaflet-popup-content{ font-size:13px; line-height:1.45; }
+  .leaflet-popup-content b{ font-size:14px; }
+  .popup-row{ margin-top:3px; }
+  .badge-done{ color:#2e7d32; font-weight:600; }
+  .badge-todo{ color:#b45309; font-weight:600; }
+</style>
+</head>
+<body>
+
+<div class="title-bar">
+  Vacances — carte des étapes
+  <span id="mode-desc">Couleur = priorité (1?5) · Taille = accès · Icône = activité · Trait plein = fait</span>
+</div>
+
+<div class="mode-switch" id="mode-switch">
+  <button class="mode-btn active" data-mode="priorite">Mode priorité</button>
+  <button class="mode-btn" data-mode="acces">Mode accès</button>
+</div>
+
+<div id="map"></div>
+
+<script>
+// ------- DONNÉES : ajoute/modifie tes lignes ici -------
+const data = [
+  {
+    nom: "Interlaken",
+    activite: "trek",
+    niveauAcces: 3,
+    priorite: 5,
+    lat: 46.69078518086346,
+    lon: 7.86962479523632,
+    commentaire: "Rando/visiter la ville avec Luca et Sven, et Grindelwald",
+    fait: "Fait"
+  },
+  {
+    nom: "Mulhouse",
+    activite: "musee",
+    niveauAcces: 1,
+    priorite: 4,
+    lat: 47.742434047505334,
+    lon: 7.342932988707063,
+    commentaire: "Velo, musee de l'automobile et du train dans la journee",
+    fait: "Fait"
+  }
+];
+
+// ------- Couleur selon priorité 1 (bleu) -> 5 (rouge) -------
+function couleurPriorite(p){
+  const stops = {
+    1: "#3b7dd8",
+    2: "#4fa5a0",
+    3: "#e8c547",
+    4: "#e08a3c",
+    5: "#c0392b"
+  };
+  return stops[Math.min(5, Math.max(1, Math.round(p)))];
+}
+
+// ------- Icône selon type d'activité (extensible) -------
+const iconesConnues = {
+  "trek": "??",
+  "rando": "??",
+  "musee": "???",
+  "musée": "???",
+  "visite": "??",
+  "plage": "???",
+  "ville": "???",
+  "velo": "??",
+  "vélo": "??",
+  "montagne": "??",
+  "escalade": "??",
+  "ski": "??",
+  "restaurant": "???",
+  "bateau": "?"
+};
+// gère les activités composées, ex: "velo/rando" ou "visite/rando"
+function iconeActivite(act){
+  const parts = (act || "").toLowerCase().trim().split("/").map(p => p.trim()).filter(Boolean);
+  if (parts.length === 0) return "??";
+  const emojis = parts.map(p => iconesConnues[p] || "??");
+  const uniques = [...new Set(emojis)];
+  return uniques.join("");
+}
+
+// taille selon niveau d'accès (1->5 => 26px->42px)
+function tailleAcces(n){
+  const v = Math.min(5, Math.max(1, Number(n) || 1));
+  return 24 + (v - 1) * 4;
+}
+
+const map = L.map('map', { zoomControl: true }).setView([46.8, 7.6], 8);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+let currentMode = "priorite"; // "priorite" ou "acces"
+let markers = [];
+
+function couleurAcces(n){
+  // même échelle de couleur, appliquée au niveau d'accès
+  return couleurPriorite(n);
+}
+
+function dessinerMarqueurs(){
+  // nettoie les marqueurs existants
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+
+  const bounds = [];
+
+  data.forEach(pt => {
+    const done = (pt.fait || "").toLowerCase().startsWith("fait");
+    const emoji = iconeActivite(pt.activite);
+
+    let size, color;
+    if (currentMode === "priorite") {
+      color = couleurPriorite(pt.priorite);
+      size = tailleAcces(pt.niveauAcces);
+    } else {
+      color = couleurAcces(pt.niveauAcces);
+      size = tailleAcces(pt.priorite);
+    }
+
+    const html = `<div class="pin-icon ${done ? 'pin-done' : 'pin-todo'}"
+        style="width:${size}px;height:${size}px;background:${color};font-size:${size*0.55}px;">
+        ${emoji}
+      </div>`;
+
+    const icon = L.divIcon({
+      html: html,
+      className: "",
+      iconSize: [size, size],
+      iconAnchor: [size/2, size/2]
+    });
+
+    const marker = L.marker([pt.lat, pt.lon], { icon: icon }).addTo(map);
+
+    marker.bindTooltip(pt.nom, {
+      permanent: true,
+      direction: "top",
+      offset: [0, -size/2 - 2],
+      className: "marker-label"
+    });
+
+    marker.bindPopup(`
+      <b>${pt.nom}</b><br>
+      <div class="popup-row">Activité : ${pt.activite}</div>
+      <div class="popup-row">Priorité : ${pt.priorite} / 5</div>
+      <div class="popup-row">Niveau d'accès : ${pt.niveauAcces} / 5</div>
+      <div class="popup-row">${done ? '<span class="badge-done">? Fait</span>' : '<span class="badge-todo">? À faire</span>'}</div>
+      <div class="popup-row">${pt.commentaire || ""}</div>
+    `);
+
+    markers.push(marker);
+    bounds.push([pt.lat, pt.lon]);
+  });
+
+  return bounds;
+}
+
+const initialBounds = dessinerMarqueurs();
+if (initialBounds.length > 0) {
+  map.fitBounds(initialBounds, { padding: [60, 60] });
+}
+
+// ------- Bascule de mode -------
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentMode = btn.dataset.mode;
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('mode-desc').textContent =
+      currentMode === "priorite"
+        ? "Couleur = priorité (1?5) · Taille = accès · Icône = activité · Trait plein = fait"
+        : "Couleur = accès (1?5) · Taille = priorité · Icône = activité · Trait plein = fait";
+    dessinerMarqueurs();
+    updateLegend();
+  });
+});
+
+// ------- Légende dynamique -------
+const legendDiv = document.createElement('div');
+legendDiv.className = 'legend';
+document.body.appendChild(legendDiv);
+
+function updateLegend(){
+  const activitesPresentes = [...new Set(data.map(d => (d.activite || "").toLowerCase().trim()))];
+  const labelCouleur = currentMode === "priorite" ? "Priorité" : "Accès";
+  const labelTaille = currentMode === "priorite" ? "niveau d'accès" : "priorité";
+
+  let legendHtml = `<h4>Activité</h4>`;
+  activitesPresentes.forEach(a => {
+    legendHtml += `<div class="legend-row"><span style="font-size:15px;">${iconeActivite(a)}</span> ${a}</div>`;
+  });
+  legendHtml += `<div class="legend-divider"></div>`;
+  legendHtml += `<h4>${labelCouleur}</h4>`;
+  legendHtml += `<div class="legend-scale">
+    <div style="background:#3b7dd8;"></div>
+    <div style="background:#4fa5a0;"></div>
+    <div style="background:#e8c547;"></div>
+    <div style="background:#e08a3c;"></div>
+    <div style="background:#c0392b;"></div>
+  </div>
+  <div style="display:flex;justify-content:space-between;font-size:10.5px;color:#666;">
+    <span>1 (basse)</span><span>5 (haute)</span>
+  </div>`;
+  legendHtml += `<div class="legend-divider"></div>`;
+  legendHtml += `<div class="legend-row"><span style="border:2px solid rgba(0,0,0,0.55);border-radius:50%;width:12px;height:12px;display:inline-block;"></span> Fait</div>`;
+  legendHtml += `<div class="legend-row"><span style="border:2px dashed rgba(0,0,0,0.6);border-radius:50%;width:12px;height:12px;display:inline-block;"></span> À faire</div>`;
+  legendHtml += `<div style="font-size:10.5px;color:#666;margin-top:4px;">Taille du point = ${labelTaille}</div>`;
+
+  legendDiv.innerHTML = legendHtml;
+}
+
+updateLegend();
+</script>
+
+</body>
+</html>

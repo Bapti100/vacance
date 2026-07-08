@@ -1,0 +1,13 @@
+nom	activité	niveau d'acces	priorité	lat	long	commentaire	Acomplissement
+Interlaken	trek	3	5	46.69078518086346	7.86962479523632	Rando/visiter la ville avec Luca et Sven, et Grindelwald	Fait
+Mulhouse	musee	1	4	47.742434047505334	7.342932988707063	Velo, musee de l'automobile et du train dans la journee	Fait
+Hinterzarten	rando	2	3	47.90638619519833	8.105973367991316	Point de la gare, puis rando montagne plus haute de la foret noire	None
+Breg (danube)	velo/rando	2	3	48.0953197750693	8.154900199009724	Point de la source du danube	None
+Ulm	visite	2	3	48.399555177054445	9.98249845216407	Visiter la ville	None
+Constance	visite	3	4	47.65883605535179	9.177102979134169	Visiter la ville	None
+Heidelberg	visite	2	2	49.403563461904625	8.675454509697746	Visiter la ville	None
+Freibourg	visite	1	3	47.99767839288345	7.84187281569724
+Lucerne	visite	3	3	47.04948448319864	8.310381624364517
+Vaduz	visite	5	1	47.16857152438184	9.508145726511499	Visiter la ville
+Zermatt	visite/rando	5	1	46.02405643563314	7.747840032980583	Visiter la ville et rando	None
+Lugano	trek	5	4	46.00499761448999	8.946881773540868	Rando/visiter la ville avec Luca et Sven	None
