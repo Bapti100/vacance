@@ -99,43 +99,57 @@
 <body>
 
 <div class="title-bar">
-  Vacances — carte des étapes
-  <span id="mode-desc">Couleur = priorité (1?5) · Taille = accès · Icône = activité · Trait plein = fait</span>
+  Vacances â€” carte des Ã©tapes
+  <span id="mode-desc">Couleur = prioritÃ© (1?5) Â· Taille = accÃ¨s Â· IcÃ´ne = activitÃ© Â· Trait plein = fait</span>
 </div>
 
 <div class="mode-switch" id="mode-switch">
-  <button class="mode-btn active" data-mode="priorite">Mode priorité</button>
-  <button class="mode-btn" data-mode="acces">Mode accès</button>
+  <button class="mode-btn active" data-mode="priorite">Mode prioritÃ©</button>
+  <button class="mode-btn" data-mode="acces">Mode accÃ¨s</button>
 </div>
 
 <div id="map"></div>
 
 <script>
-// ------- DONNÉES : ajoute/modifie tes lignes ici -------
-const data = [
-  {
-    nom: "Interlaken",
-    activite: "trek",
-    niveauAcces: 3,
-    priorite: 5,
-    lat: 46.69078518086346,
-    lon: 7.86962479523632,
-    commentaire: "Rando/visiter la ville avec Luca et Sven, et Grindelwald",
-    fait: "Fait"
-  },
-  {
-    nom: "Mulhouse",
-    activite: "musee",
-    niveauAcces: 1,
-    priorite: 4,
-    lat: 47.742434047505334,
-    lon: 7.342932988707063,
-    commentaire: "Velo, musee de l'automobile et du train dans la journee",
-    fait: "Fait"
-  }
-];
+// ------- DONNÃ‰ES : chargÃ©es depuis point_gare.csv (colonnes sÃ©parÃ©es par tabulation) -------
+let data = [];
 
-// ------- Couleur selon priorité 1 (bleu) -> 5 (rouge) -------
+// normalise un en-tÃªte : minuscule, sans accents, sans espaces superflus
+function normaliserEntete(s){
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+function parserCSV(texte){
+  const lignes = texte.replace(/\r/g, "").trim().split("\n");
+  const entetes = lignes[0].split("\t").map(normaliserEntete);
+
+  const idx = {
+    nom: entetes.findIndex(e => e === "nom"),
+    activite: entetes.findIndex(e => e.startsWith("activit")),
+    niveauAcces: entetes.findIndex(e => e.includes("niveau") && e.includes("acces")),
+    priorite: entetes.findIndex(e => e.startsWith("priorit")),
+    lat: entetes.findIndex(e => e === "lat"),
+    lon: entetes.findIndex(e => e === "long" || e === "lon"),
+    commentaire: entetes.findIndex(e => e.startsWith("comment")),
+    fait: entetes.findIndex(e => e.startsWith("acomplissement") || e.startsWith("accomplissement"))
+  };
+
+  return lignes.slice(1).filter(l => l.trim() !== "").map(ligne => {
+    const cols = ligne.split("\t");
+    return {
+      nom: cols[idx.nom] ?? "",
+      activite: cols[idx.activite] ?? "",
+      niveauAcces: Number(cols[idx.niveauAcces]) || 1,
+      priorite: Number(cols[idx.priorite]) || 1,
+      lat: parseFloat(cols[idx.lat]),
+      lon: parseFloat(cols[idx.lon]),
+      commentaire: cols[idx.commentaire] ?? "",
+      fait: cols[idx.fait] ?? ""
+    };
+  }).filter(pt => !isNaN(pt.lat) && !isNaN(pt.lon));
+}
+
+// ------- Couleur selon prioritÃ© 1 (bleu) -> 5 (rouge) -------
 function couleurPriorite(p){
   const stops = {
     1: "#3b7dd8",
@@ -147,24 +161,24 @@ function couleurPriorite(p){
   return stops[Math.min(5, Math.max(1, Math.round(p)))];
 }
 
-// ------- Icône selon type d'activité (extensible) -------
+// ------- IcÃ´ne selon type d'activitÃ© (extensible) -------
 const iconesConnues = {
   "trek": "??",
   "rando": "??",
   "musee": "???",
-  "musée": "???",
+  "musÃ©e": "???",
   "visite": "??",
   "plage": "???",
   "ville": "???",
   "velo": "??",
-  "vélo": "??",
+  "vÃ©lo": "??",
   "montagne": "??",
   "escalade": "??",
   "ski": "??",
   "restaurant": "???",
   "bateau": "?"
 };
-// gère les activités composées, ex: "velo/rando" ou "visite/rando"
+// gÃ¨re les activitÃ©s composÃ©es, ex: "velo/rando" ou "visite/rando"
 function iconeActivite(act){
   const parts = (act || "").toLowerCase().trim().split("/").map(p => p.trim()).filter(Boolean);
   if (parts.length === 0) return "??";
@@ -173,7 +187,7 @@ function iconeActivite(act){
   return uniques.join("");
 }
 
-// taille selon niveau d'accès (1->5 => 26px->42px)
+// taille selon niveau d'accÃ¨s (1->5 => 26px->42px)
 function tailleAcces(n){
   const v = Math.min(5, Math.max(1, Number(n) || 1));
   return 24 + (v - 1) * 4;
@@ -190,7 +204,7 @@ let currentMode = "priorite"; // "priorite" ou "acces"
 let markers = [];
 
 function couleurAcces(n){
-  // même échelle de couleur, appliquée au niveau d'accès
+  // mÃªme Ã©chelle de couleur, appliquÃ©e au niveau d'accÃ¨s
   return couleurPriorite(n);
 }
 
@@ -237,10 +251,10 @@ function dessinerMarqueurs(){
 
     marker.bindPopup(`
       <b>${pt.nom}</b><br>
-      <div class="popup-row">Activité : ${pt.activite}</div>
-      <div class="popup-row">Priorité : ${pt.priorite} / 5</div>
-      <div class="popup-row">Niveau d'accès : ${pt.niveauAcces} / 5</div>
-      <div class="popup-row">${done ? '<span class="badge-done">? Fait</span>' : '<span class="badge-todo">? À faire</span>'}</div>
+      <div class="popup-row">ActivitÃ© : ${pt.activite}</div>
+      <div class="popup-row">PrioritÃ© : ${pt.priorite} / 5</div>
+      <div class="popup-row">Niveau d'accÃ¨s : ${pt.niveauAcces} / 5</div>
+      <div class="popup-row">${done ? '<span class="badge-done">? Fait</span>' : '<span class="badge-todo">? Ã€ faire</span>'}</div>
       <div class="popup-row">${pt.commentaire || ""}</div>
     `);
 
@@ -251,10 +265,29 @@ function dessinerMarqueurs(){
   return bounds;
 }
 
-const initialBounds = dessinerMarqueurs();
-if (initialBounds.length > 0) {
-  map.fitBounds(initialBounds, { padding: [60, 60] });
-}
+const initialBounds = [];
+
+// ------- Chargement du fichier point_gare.csv -------
+fetch('point_gare.csv')
+  .then(res => {
+    if (!res.ok) throw new Error("Fichier introuvable (" + res.status + ")");
+    return res.text();
+  })
+  .then(texte => {
+    data = parserCSV(texte);
+    const bounds = dessinerMarqueurs();
+    if (bounds.length > 0) {
+      map.fitBounds(bounds, { padding: [60, 60] });
+    }
+    updateLegend();
+  })
+  .catch(err => {
+    console.error(err);
+    const errDiv = document.createElement('div');
+    errDiv.style.cssText = "position:absolute;top:70px;left:12px;z-index:1000;background:#fdecea;border:1px solid #c0392b;color:#7a1f1f;padding:10px 14px;border-radius:8px;font-size:13px;max-width:320px;box-shadow:0 2px 6px rgba(0,0,0,0.12);";
+    errDiv.textContent = "Impossible de charger point_gare.csv : " + err.message + ". VÃ©rifie que le fichier est bien dans le mÃªme dossier que ce HTML, et que la page est servie via http(s) (pas ouverte en double-clic, sinon utilise un petit serveur local ou GitHub Pages).";
+    document.body.appendChild(errDiv);
+  });
 
 // ------- Bascule de mode -------
 document.querySelectorAll('.mode-btn').forEach(btn => {
@@ -264,24 +297,24 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
     btn.classList.add('active');
     document.getElementById('mode-desc').textContent =
       currentMode === "priorite"
-        ? "Couleur = priorité (1?5) · Taille = accès · Icône = activité · Trait plein = fait"
-        : "Couleur = accès (1?5) · Taille = priorité · Icône = activité · Trait plein = fait";
+        ? "Couleur = prioritÃ© (1?5) Â· Taille = accÃ¨s Â· IcÃ´ne = activitÃ© Â· Trait plein = fait"
+        : "Couleur = accÃ¨s (1?5) Â· Taille = prioritÃ© Â· IcÃ´ne = activitÃ© Â· Trait plein = fait";
     dessinerMarqueurs();
     updateLegend();
   });
 });
 
-// ------- Légende dynamique -------
+// ------- LÃ©gende dynamique -------
 const legendDiv = document.createElement('div');
 legendDiv.className = 'legend';
 document.body.appendChild(legendDiv);
 
 function updateLegend(){
   const activitesPresentes = [...new Set(data.map(d => (d.activite || "").toLowerCase().trim()))];
-  const labelCouleur = currentMode === "priorite" ? "Priorité" : "Accès";
-  const labelTaille = currentMode === "priorite" ? "niveau d'accès" : "priorité";
+  const labelCouleur = currentMode === "priorite" ? "PrioritÃ©" : "AccÃ¨s";
+  const labelTaille = currentMode === "priorite" ? "niveau d'accÃ¨s" : "prioritÃ©";
 
-  let legendHtml = `<h4>Activité</h4>`;
+  let legendHtml = `<h4>ActivitÃ©</h4>`;
   activitesPresentes.forEach(a => {
     legendHtml += `<div class="legend-row"><span style="font-size:15px;">${iconeActivite(a)}</span> ${a}</div>`;
   });
@@ -299,7 +332,7 @@ function updateLegend(){
   </div>`;
   legendHtml += `<div class="legend-divider"></div>`;
   legendHtml += `<div class="legend-row"><span style="border:2px solid rgba(0,0,0,0.55);border-radius:50%;width:12px;height:12px;display:inline-block;"></span> Fait</div>`;
-  legendHtml += `<div class="legend-row"><span style="border:2px dashed rgba(0,0,0,0.6);border-radius:50%;width:12px;height:12px;display:inline-block;"></span> À faire</div>`;
+  legendHtml += `<div class="legend-row"><span style="border:2px dashed rgba(0,0,0,0.6);border-radius:50%;width:12px;height:12px;display:inline-block;"></span> Ã€ faire</div>`;
   legendHtml += `<div style="font-size:10.5px;color:#666;margin-top:4px;">Taille du point = ${labelTaille}</div>`;
 
   legendDiv.innerHTML = legendHtml;
