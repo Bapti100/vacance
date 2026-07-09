@@ -17,7 +17,7 @@
   #map { position:absolute; top:0; bottom:0; left:0; right:0; }
 
   .title-bar{
-    position:absolute; top:12px; left:12px; z-index:1000;
+    position:absolute; top:60px; left:12px; z-index:1000;
     background: rgba(250,248,244,0.95);
     border:1px solid var(--line);
     border-radius:8px;
@@ -25,6 +25,7 @@
     box-shadow:0 2px 6px rgba(0,0,0,0.12);
     font-size:15px;
     font-weight:600;
+    max-width:calc(100vw - 24px);
   }
   .title-bar span{ font-weight:400; font-size:12px; color:#666; display:block; }
 
@@ -100,7 +101,7 @@
 
 <div class="title-bar">
   Vacances — carte des étapes
-  <span id="mode-desc">Couleur = priorité (1?5) · Taille = accès · Icône = activité · Trait plein = fait</span>
+  <span id="mode-desc">Couleur = priorité (1→5) · Taille = accès · Icône = activité · Trait plein = fait</span>
 </div>
 
 <div class="mode-switch" id="mode-switch">
@@ -161,30 +162,42 @@ function couleurPriorite(p){
   return stops[Math.min(5, Math.max(1, Math.round(p)))];
 }
 
-// ------- Icône selon type d'activité (extensible) -------
-const iconesConnues = {
-  "trek": "??",
-  "rando": "??",
-  "musee": "???",
-  "musée": "???",
-  "visite": "??",
-  "plage": "???",
-  "ville": "???",
-  "velo": "??",
-  "vélo": "??",
-  "montagne": "??",
-  "escalade": "??",
-  "ski": "??",
-  "restaurant": "???",
-  "bateau": "?"
+// ------- Icône SVG selon type d'activité (extensible, pas d'emoji = pas de souci de police) -------
+const svgIcones = {
+  "trek": '<path d="M6 20l3-9 2 3 2-5 3 11" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="6" r="1.6" fill="white"/>',
+  "rando": '<path d="M6 20l3-9 2 3 2-5 3 11" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="6" r="1.6" fill="white"/>',
+  "musee": '<path d="M4 20h16M5 20V10l7-5 7 5v10M9 20v-6h2v6m2-6h2v6" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  "visite": '<circle cx="12" cy="5.5" r="2" fill="white"/><path d="M12 8v6M12 9l-4 2M12 9l4 2M12 14l-3 6M12 14l3 6" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  "plage": '<path d="M4 19c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2M12 15V6M9 9l3-3 3 3" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  "ville": '<path d="M4 20V9l4-3v14M12 20V5l4 2v13M20 20V12l-4-2" fill="none" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>',
+  "velo": '<circle cx="6.5" cy="17" r="3" fill="none" stroke="white" stroke-width="1.7"/><circle cx="17.5" cy="17" r="3" fill="none" stroke="white" stroke-width="1.7"/><path d="M6.5 17l4-9h3l4 9M9 8h4.5" fill="none" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>',
+  "montagne": '<path d="M2 19l6-11 4 6 3-4 7 9z" fill="white"/>',
+  "escalade": '<path d="M4 20l3-4 3 2 3-6 3 2 4-9" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20" cy="5" r="1.6" fill="white"/>',
+  "ski": '<path d="M5 20L9 5M9.5 20L13.5 5M14 8h3.5M14 12h3.5" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"/>',
+  "restaurant": '<path d="M7 3v6a2 2 0 1 1-4 0V3M5 9v11M15 3c-1.5 2-1.5 5 0 7v10" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
+  "bateau": '<path d="M3 15h18l-2.5 5h-13zM12 15V4M9 8h6" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>'
 };
+const svgInconnu = '<circle cx="12" cy="9" r="1" fill="white"/><path d="M12 3a4 4 0 0 1 4 4c0 2.5-3 3-3 5.5" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"/>';
+
+function svgWrap(inner, taillePct){
+  return `<svg viewBox="0 0 24 24" style="width:${taillePct}%;height:${taillePct}%;">${inner}</svg>`;
+}
+
 // gère les activités composées, ex: "velo/rando" ou "visite/rando"
 function iconeActivite(act){
   const parts = (act || "").toLowerCase().trim().split("/").map(p => p.trim()).filter(Boolean);
-  if (parts.length === 0) return "??";
-  const emojis = parts.map(p => iconesConnues[p] || "??");
-  const uniques = [...new Set(emojis)];
-  return uniques.join("");
+  if (parts.length === 0) return svgWrap(svgInconnu, 55);
+
+  const uniquesInner = [...new Set(parts.map(p => svgIcones[p] || svgInconnu))];
+
+  if (uniquesInner.length === 1) {
+    return svgWrap(uniquesInner[0], 60);
+  }
+  // plusieurs icônes distinctes : on les affiche côte à côte, plus petites
+  const taillePct = Math.max(30, 55 / uniquesInner.length + 15);
+  return `<div style="display:flex;align-items:center;justify-content:center;gap:1px;width:100%;height:100%;">
+    ${uniquesInner.map(inner => svgWrap(inner, taillePct)).join("")}
+  </div>`;
 }
 
 // taille selon niveau d'accès (1->5 => 26px->42px)
@@ -229,7 +242,7 @@ function dessinerMarqueurs(){
     }
 
     const html = `<div class="pin-icon ${done ? 'pin-done' : 'pin-todo'}"
-        style="width:${size}px;height:${size}px;background:${color};font-size:${size*0.55}px;">
+        style="width:${size}px;height:${size}px;background:${color};">
         ${emoji}
       </div>`;
 
@@ -254,7 +267,7 @@ function dessinerMarqueurs(){
       <div class="popup-row">Activité : ${pt.activite}</div>
       <div class="popup-row">Priorité : ${pt.priorite} / 5</div>
       <div class="popup-row">Niveau d'accès : ${pt.niveauAcces} / 5</div>
-      <div class="popup-row">${done ? '<span class="badge-done">? Fait</span>' : '<span class="badge-todo">? À faire</span>'}</div>
+      <div class="popup-row">${done ? '<span class="badge-done">✔ Fait</span>' : '<span class="badge-todo">◌ À faire</span>'}</div>
       <div class="popup-row">${pt.commentaire || ""}</div>
     `);
 
@@ -297,8 +310,8 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
     btn.classList.add('active');
     document.getElementById('mode-desc').textContent =
       currentMode === "priorite"
-        ? "Couleur = priorité (1?5) · Taille = accès · Icône = activité · Trait plein = fait"
-        : "Couleur = accès (1?5) · Taille = priorité · Icône = activité · Trait plein = fait";
+        ? "Couleur = priorité (1→5) · Taille = accès · Icône = activité · Trait plein = fait"
+        : "Couleur = accès (1→5) · Taille = priorité · Icône = activité · Trait plein = fait";
     dessinerMarqueurs();
     updateLegend();
   });
@@ -316,7 +329,7 @@ function updateLegend(){
 
   let legendHtml = `<h4>Activité</h4>`;
   activitesPresentes.forEach(a => {
-    legendHtml += `<div class="legend-row"><span style="font-size:15px;">${iconeActivite(a)}</span> ${a}</div>`;
+    legendHtml += `<div class="legend-row"><span style="width:18px;height:18px;background:#6b7a72;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${iconeActivite(a)}</span> ${a}</div>`;
   });
   legendHtml += `<div class="legend-divider"></div>`;
   legendHtml += `<h4>${labelCouleur}</h4>`;
