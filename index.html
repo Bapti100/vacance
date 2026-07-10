@@ -100,22 +100,22 @@
 <body>
 
 <div class="title-bar">
-  Vacances — carte des étapes
-  <span id="mode-desc">Couleur = priorité (1?5) · Taille = accès · Icône = activité · Trait plein = fait</span>
+  Vacances - carte des etapes
+  <span id="mode-desc">Couleur = priorite (1->5) - Taille = acces - Icone = activite - Trait plein = fait</span>
 </div>
 
 <div class="mode-switch" id="mode-switch">
-  <button class="mode-btn active" data-mode="priorite">Mode priorité</button>
-  <button class="mode-btn" data-mode="acces">Mode accès</button>
+  <button class="mode-btn active" data-mode="priorite">Mode priorite</button>
+  <button class="mode-btn" data-mode="acces">Mode acces</button>
 </div>
 
 <div id="map"></div>
 
 <script>
-// ------- DONNÉES : chargées depuis point_gare.csv (colonnes séparées par tabulation) -------
+// ------- DONNEES : chargees depuis point_gare.csv (colonnes separees par tabulation) -------
 let data = [];
 
-// normalise un en-tête : minuscule, sans accents, sans espaces superflus
+// normalise un en-tete : minuscule, sans accents, sans espaces superflus
 function normaliserEntete(s){
   return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 }
@@ -150,7 +150,7 @@ function parserCSV(texte){
   }).filter(pt => !isNaN(pt.lat) && !isNaN(pt.lon));
 }
 
-// ------- Couleur selon priorité 1 (bleu) -> 5 (rouge) -------
+// ------- Couleur selon priorite 1 (bleu) -> 5 (rouge) -------
 function couleurPriorite(p){
   const stops = {
     1: "#3b7dd8",
@@ -162,7 +162,7 @@ function couleurPriorite(p){
   return stops[Math.min(5, Math.max(1, Math.round(p)))];
 }
 
-// ------- Icône SVG selon type d'activité (extensible, pas d'emoji = pas de souci de police) -------
+// ------- Icone SVG selon type d'activite (extensible, pas d'emoji = pas de souci de police) -------
 const svgIcones = {
   "trek": '<path d="M6 20l3-9 2 3 2-5 3 11" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="6" r="1.6" fill="white"/>',
   "rando": '<path d="M6 20l3-9 2 3 2-5 3 11" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="6" r="1.6" fill="white"/>',
@@ -183,7 +183,7 @@ function svgWrap(inner, taillePct){
   return `<svg viewBox="0 0 24 24" style="width:${taillePct}%;height:${taillePct}%;">${inner}</svg>`;
 }
 
-// gère les activités composées, ex: "velo/rando" ou "visite/rando"
+// gere les activites composees, ex: "velo/rando" ou "visite/rando"
 function iconeActivite(act){
   const parts = (act || "").toLowerCase().trim().split("/").map(p => p.trim()).filter(Boolean);
   if (parts.length === 0) return svgWrap(svgInconnu, 55);
@@ -193,14 +193,14 @@ function iconeActivite(act){
   if (uniquesInner.length === 1) {
     return svgWrap(uniquesInner[0], 60);
   }
-  // plusieurs icônes distinctes : on les affiche côte à côte, plus petites
+  // plusieurs icones distinctes : on les affiche cote a cote, plus petites
   const taillePct = Math.max(30, 55 / uniquesInner.length + 15);
   return `<div style="display:flex;align-items:center;justify-content:center;gap:1px;width:100%;height:100%;">
     ${uniquesInner.map(inner => svgWrap(inner, taillePct)).join("")}
   </div>`;
 }
 
-// taille selon niveau d'accès (1->5 => 26px->42px)
+// taille selon niveau d'acces (1->5 => 26px->42px)
 function tailleAcces(n){
   const v = Math.min(5, Math.max(1, Number(n) || 1));
   return 24 + (v - 1) * 4;
@@ -217,7 +217,7 @@ let currentMode = "priorite"; // "priorite" ou "acces"
 let markers = [];
 
 function couleurAcces(n){
-  // même échelle de couleur, appliquée au niveau d'accès
+  // meme echelle de couleur, appliquee au niveau d'acces
   return couleurPriorite(n);
 }
 
@@ -264,10 +264,10 @@ function dessinerMarqueurs(){
 
     marker.bindPopup(`
       <b>${pt.nom}</b><br>
-      <div class="popup-row">Activité : ${pt.activite}</div>
-      <div class="popup-row">Priorité : ${pt.priorite} / 5</div>
-      <div class="popup-row">Niveau d'accès : ${pt.niveauAcces} / 5</div>
-      <div class="popup-row">${done ? '<span class="badge-done">? Fait</span>' : '<span class="badge-todo">? À faire</span>'}</div>
+      <div class="popup-row">Activite : ${pt.activite}</div>
+      <div class="popup-row">Priorite : ${pt.priorite} / 5</div>
+      <div class="popup-row">Niveau d'acces : ${pt.niveauAcces} / 5</div>
+      <div class="popup-row">${done ? '<span class="badge-done">OK Fait</span>' : '<span class="badge-todo">- A faire</span>'}</div>
       <div class="popup-row">${pt.commentaire || ""}</div>
     `);
 
@@ -298,7 +298,7 @@ fetch('point_gare.csv')
     console.error(err);
     const errDiv = document.createElement('div');
     errDiv.style.cssText = "position:absolute;top:70px;left:12px;z-index:1000;background:#fdecea;border:1px solid #c0392b;color:#7a1f1f;padding:10px 14px;border-radius:8px;font-size:13px;max-width:320px;box-shadow:0 2px 6px rgba(0,0,0,0.12);";
-    errDiv.textContent = "Impossible de charger point_gare.csv : " + err.message + ". Vérifie que le fichier est bien dans le même dossier que ce HTML, et que la page est servie via http(s) (pas ouverte en double-clic, sinon utilise un petit serveur local ou GitHub Pages).";
+    errDiv.textContent = "Impossible de charger point_gare.csv : " + err.message + ". Verifie que le fichier est bien dans le meme dossier que ce HTML, et que la page est servie via http(s) (pas ouverte en double-clic, sinon utilise un petit serveur local ou GitHub Pages).";
     document.body.appendChild(errDiv);
   });
 
@@ -311,10 +311,10 @@ fetch('zone_pays_pass.geojson')
   .then(geojson => {
     L.geoJSON(geojson, {
       style: {
-        color: "#3a6b5c",
-        weight: 0.5,
+        color: "#000000",
+        weight: 1,
         fillOpacity: 0,
-        opacity: 0.9
+        opacity: 1
       }
     }).addTo(map);
   })
@@ -322,7 +322,7 @@ fetch('zone_pays_pass.geojson')
     console.error("zone_pays_pass.geojson :", err);
     const errDiv = document.createElement('div');
     errDiv.style.cssText = "position:absolute;top:130px;left:12px;z-index:1000;background:#fdecea;border:1px solid #c0392b;color:#7a1f1f;padding:10px 14px;border-radius:8px;font-size:13px;max-width:320px;box-shadow:0 2px 6px rgba(0,0,0,0.12);";
-    errDiv.textContent = "Impossible de charger zone_pays_pass.geojson : " + err.message + ". Vérifie que le fichier est bien dans le même dossier que ce HTML.";
+    errDiv.textContent = "Impossible de charger zone_pays_pass.geojson : " + err.message + ". Verifie que le fichier est bien dans le meme dossier que ce HTML.";
     document.body.appendChild(errDiv);
   });
 
@@ -334,24 +334,24 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
     btn.classList.add('active');
     document.getElementById('mode-desc').textContent =
       currentMode === "priorite"
-        ? "Couleur = priorité (1?5) · Taille = accès · Icône = activité · Trait plein = fait"
-        : "Couleur = accès (1?5) · Taille = priorité · Icône = activité · Trait plein = fait";
+        ? "Couleur = priorite (1->5) - Taille = acces - Icone = activite - Trait plein = fait"
+        : "Couleur = acces (1->5) - Taille = priorite - Icone = activite - Trait plein = fait";
     dessinerMarqueurs();
     updateLegend();
   });
 });
 
-// ------- Légende dynamique -------
+// ------- Legende dynamique -------
 const legendDiv = document.createElement('div');
 legendDiv.className = 'legend';
 document.body.appendChild(legendDiv);
 
 function updateLegend(){
   const activitesPresentes = [...new Set(data.map(d => (d.activite || "").toLowerCase().trim()))];
-  const labelCouleur = currentMode === "priorite" ? "Priorité" : "Accès";
-  const labelTaille = currentMode === "priorite" ? "niveau d'accès" : "priorité";
+  const labelCouleur = currentMode === "priorite" ? "Priorite" : "Acces";
+  const labelTaille = currentMode === "priorite" ? "niveau d'acces" : "priorite";
 
-  let legendHtml = `<h4>Activité</h4>`;
+  let legendHtml = `<h4>Activite</h4>`;
   activitesPresentes.forEach(a => {
     legendHtml += `<div class="legend-row"><span style="width:18px;height:18px;background:#6b7a72;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${iconeActivite(a)}</span> ${a}</div>`;
   });
@@ -369,10 +369,10 @@ function updateLegend(){
   </div>`;
   legendHtml += `<div class="legend-divider"></div>`;
   legendHtml += `<div class="legend-row"><span style="border:2px solid rgba(0,0,0,0.55);border-radius:50%;width:12px;height:12px;display:inline-block;"></span> Fait</div>`;
-  legendHtml += `<div class="legend-row"><span style="border:2px dashed rgba(0,0,0,0.6);border-radius:50%;width:12px;height:12px;display:inline-block;"></span> À faire</div>`;
+  legendHtml += `<div class="legend-row"><span style="border:2px dashed rgba(0,0,0,0.6);border-radius:50%;width:12px;height:12px;display:inline-block;"></span> A faire</div>`;
   legendHtml += `<div style="font-size:10.5px;color:#666;margin-top:4px;">Taille du point = ${labelTaille}</div>`;
   legendHtml += `<div class="legend-divider"></div>`;
-  legendHtml += `<div class="legend-row"><span style="width:16px;height:10px;border:1px solid #3a6b5c;border-radius:2px;display:inline-block;"></span> Zone accessible (pass)</div>`;
+  legendHtml += `<div class="legend-row"><span style="width:16px;height:10px;border:1px solid #000000;border-radius:2px;display:inline-block;"></span> Zone accessible (pass)</div>`;
 
   legendDiv.innerHTML = legendHtml;
 }
